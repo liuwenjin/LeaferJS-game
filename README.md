@@ -1,45 +1,140 @@
-# LeaferJS Game · 2D 小游戏生成器
+# LeaferJS Game
 
-> 把一句自然语言需求，变成 **打开就能玩、手机也能玩** 的 2D 小游戏。
-> 交付物是严格 JSON 协议里的单文件 HTML，由 [LeaferJS](https://www.leaferjs.com/) 渲染，键盘 + 触屏双输入，无需构建。
+**可独立运行的 2D 小游戏生成器**
 
+> 一句自然语言需求，得到一个 **打开就能玩、手机也能玩** 的 2D 小游戏。
+> 自带任意大模型即可运行；产物是零依赖的单文件 HTML，键盘与触屏双输入。
+
+![BYOM](https://img.shields.io/badge/model-any%20LLM-6f5cff)
 ![LeaferJS](https://img.shields.io/badge/LeaferJS-2.3.4-6f5cff)
 ![Single File](https://img.shields.io/badge/output-single--file%20HTML-2ea44f)
 ![60 FPS](https://img.shields.io/badge/target-60%20fps-2ea44f)
 
 ---
 
-## 这是什么
+## 简介
 
-本仓库是一套**面向大模型的 2D 游戏生成提示词**（`appPrompt.md`）及其配套页面。它把模型组织成一支五人游戏团队：
+**LeaferJS Game 是一个可独立运行的 AI 工具**，不是某个平台的插件，也不需要登录任何账号。
 
-- **游戏设计总监**：核心循环、难度曲线、一局时长、失败后的重开冲动
-- **美术指导**：三色体系、剪影、视觉层次、390px 窄屏可读性
-- **玩法工程师**：固定步长、输入、碰撞、状态机、数值调参
-- **LeaferJS 技术负责人**：场景树、坐标、自适应、性能、错误兜底
-- **QA**：8 秒测试、重开测试、手机测试、最终验收
+它的全部能力来自一份系统提示词 [`appPrompt.md`](./appPrompt.md)：把这份提示词交给任意支持长输出的 LLM，模型就会把你的玩法描述变成一个可完整游玩的小游戏，并以严格 JSON 交付。取 JSON 里的 `code` 字段保存为 `.html`，双击就能开始。
 
-模型只输出一个 JSON 对象，`code` 字段是完整的、可直接在浏览器打开的单文件 HTML。目标是**一个核心机制**、30–90 秒一局，而不是多关卡、多模式或游戏编辑器。
+```text
+你的玩法描述 ──► 任意 LLM ──► JSON ──► game.html ──► 浏览器
+                    ▲
+              appPrompt.md
+```
 
-## 在线体验
+工具链上没有隐藏服务：没有后端、没有数据库、没有构建步骤。你需要的只是一个模型端点（云端 API 或本地模型）和一个浏览器。
 
-- 平台内体验：<https://transweb.cn/agent.html?id=ac531ed5783afaa1bd0590a357539e5d>
-- 本仓库的 `appPage.html` 以 `iframe` 嵌入同一在线应用，可直接用浏览器打开。
+## 为什么它可以独立运行
 
-## 核心特性
-
-| 能力 | 说明 |
+| 维度 | 说明 |
 | --- | --- |
-| 核心循环 | 一个核心动词（移动/射击/跳跃/躲避/收集/合成）对抗一种压力 |
-| 8 秒法则 | 8 秒内让玩家知道「这是什么、怎么玩、目标是什么」 |
-| 状态机 | `ready → playing → paused → over`，失败后 1 秒内可重开 |
-| 固定步长 | 1/60 秒固定更新，累积器 + 单帧 `dt` 钳制，逻辑与帧率解耦 |
-| 双输入 | 键盘（WASD / 方向键）+ 指针拖拽 / 触摸，两条路径都能完成一局 |
-| 手感反馈 | 加速度与摩擦、无敌帧、命中停顿、屏幕震动、粒子、飘字、连击 |
-| 公平难度 | 分阶段推进，生成有预警、有安全距离，随机只制造变化不制造必死 |
-| 自适应场地 | 设计分辨率等比缩放居中，竖屏完整可见，不拉伸不裁切 |
-| 性能预算 | 渲染节点 ≤ 300、粒子池 ≤ 120、敌人 ≤ 12、子弹 ≤ 60，目标 60fps |
-| 零外部依赖 | 无图片、无字体、无音频文件，全部程序化绘制 |
+| **模型自由** | OpenAI、DeepSeek、Claude、Gemini、Ollama、vLLM 均可；只要支持 system prompt 与长输出 |
+| **无平台锁定** | 不调用 transweb.cn 或任何私有接口；平台页面只是同款提示词的参考实现 |
+| **本地执行** | 提示词、调用脚本、产物都在你的机器上；使用本地模型时可完全离线生成 |
+| **产物可移植** | 输出是单个 `.html` 文件，可双击打开、邮件发送、静态托管或嵌入 iframe |
+| **过程可审计** | 提示词、协议和生成结果全部可见，可 diff、可版本化、可二次修改 |
+
+## 它生成什么
+
+一个能完整玩一局的小游戏，而不是一张会动的场景：
+
+- **单一核心循环**：一个核心动词（移动 / 射击 / 跳跃 / 躲避 / 收集 / 合成）对抗一种压力
+- **8 秒法则**：打开页面 8 秒内看懂「这是什么、怎么玩、目标是什么」
+- **完整状态机**：`ready → playing → paused → over`，失败后 1 秒内重开
+- **固定步长**：1/60 秒固定更新，累积器追赶，逻辑与帧率解耦
+- **双输入**：键盘（WASD / 方向键）+ 指针拖拽 / 触摸，两条路径都能完成一局
+- **手感反馈**：加速度与摩擦、无敌帧、命中停顿、屏幕震动、粒子与飘字
+- **公平难度**：分阶段推进，生成有预警、有安全距离，随机只制造变化不制造必死
+- **自适应场地**：设计分辨率等比缩放居中，竖屏完整可见，不拉伸不裁切
+- **性能预算**：节点 ≤ 300、粒子池 ≤ 120、敌人 ≤ 12、子弹 ≤ 60，目标 60fps
+- **零外部素材**：无图片、无字体、无音频文件，全部程序化绘制
+
+## 快速开始（独立运行）
+
+### 前置条件
+
+- Node.js 18+（内置 `fetch`，无需 `npm install`）
+- 一个 OpenAI 兼容的模型端点；建议单次输出上限 **≥ 8K tokens**
+
+### 1. 获取工具
+
+```bash
+git clone https://github.com/liuwenjin/LeaferJS-game.git
+cd LeaferJS-game
+```
+
+### 2. 创建本地运行器
+
+把下面的代码保存为 `run.mjs`（放在仓库根目录）：
+
+> 不想用 Node.js？任何 HTTP 客户端都可以：把 `appPrompt.md` 作为 system message、需求作为 user message 发送，再解析返回的 JSON。
+
+```js
+// run.mjs — Node.js 18+，零依赖
+import fs from 'node:fs';
+
+const system = fs.readFileSync('appPrompt.md', 'utf8');
+const idea = process.argv.slice(2).join(' ') || '控制一只猫在霓虹屋顶间跳跃，躲开无人机，收集鱼干。';
+const base = (process.env.LLM_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
+
+const res = await fetch(`${base}/chat/completions`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.LLM_API_KEY}`
+  },
+  body: JSON.stringify({
+    model: process.env.LLM_MODEL || 'deepseek-chat',
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: idea }
+    ],
+    max_tokens: Number(process.env.LLM_MAX_TOKENS || 8000),
+    temperature: 0.7
+  })
+});
+
+if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+const body = await res.json();
+if (body.choices?.[0]?.finish_reason === 'length') {
+  throw new Error('输出被截断：请提高 LLM_MAX_TOKENS，或换用输出上限更大的模型');
+}
+
+const raw = body.choices[0].message.content.trim()
+  .replace(/^`{3}(?:json)?\s*/, '')
+  .replace(/\s*`{3}$/, '');
+const data = JSON.parse(raw);
+fs.writeFileSync('game.html', data.code, 'utf8');
+console.log(`✓ ${data.title} → game.html（${data.code.split('\n').length} 行）`);
+```
+
+### 3. 生成并开始游戏
+
+```bash
+LLM_API_KEY=sk-... node run.mjs "玩家控制一只在霓虹城市屋顶间跳跃的猫，躲开无人机，收集鱼干"
+open game.html     # macOS；其他系统直接双击
+```
+
+点击「开始」后键盘事件才会绑定到页面；手机上用拖拽或触摸操作。游戏产物本身不需要 Node.js。
+
+### 4. 换一个模型
+
+| 服务 | `LLM_BASE_URL` | `LLM_MODEL` 示例 |
+| --- | --- | --- |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4.1` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
+| Ollama（本地） | `http://localhost:11434/v1` | `qwen2.5:14b` |
+| vLLM（本地） | `http://localhost:8000/v1` | 你部署的模型名 |
+| 其他网关 | 任意 OpenAI 兼容地址 | 以服务商文档为准 |
+
+```bash
+LLM_BASE_URL=https://api.openai.com/v1 LLM_MODEL=gpt-4.1 \
+LLM_API_KEY=sk-... node run.mjs "在深海热泉口躲避喷发，收集发光矿石"
+```
+
+> Claude、Gemini 的原生 API 协议不同，可通过 OpenAI 兼容网关接入，或自行替换运行器中的请求部分。模型不是工具的一部分，可随时替换。
 
 ## 交付协议（硬约束）
 
@@ -80,54 +175,37 @@
 
 ## 技术栈
 
-- **运行时**：原生 HTML / CSS / JavaScript，单个 HTML 文件，无打包、无框架、无 `import` / `require`
-- **渲染引擎**：`LeaferJS 2.3.4`，唯一 CDN 依赖
-  `https://unpkg.com/leafer-ui@2.3.4/dist/web.min.js`
-- **主循环**：单个 `requestAnimationFrame`，固定步长 `STEP = 1 / 60`，`while` 追赶最多 5 步
-- **画布初始化**：`new L.Leafer({ view: window, type: 'draw', ... })`，关闭默认视窗缩放/平移
-- **坐标系**：`world`（缩放居中）+ `shakeLayer`（震屏偏移）；玩法坐标全部使用设计单位
-- **HUD**：DOM 覆盖层，`pointer-events: none`，按钮单独可点，不占 Leafer 节点
-- **禁止项**：`alert` / `confirm` / `prompt`、`localStorage` / `sessionStorage` / `cookie`、外部字体 / 图片 / 音频
+| 层 | 选型 |
+| --- | --- |
+| 生成引擎 | `appPrompt.md`（系统提示词）+ 任意 LLM |
+| 运行器 | 约 40 行 Node.js 脚本，仅用内置 `fetch` |
+| 渲染引擎 | LeaferJS 2.3.4（唯一 CDN 依赖） |
+| 主循环 | 单个 `requestAnimationFrame`，固定步长 `STEP = 1 / 60` |
+| 场景层 | `world`（缩放居中）+ `shakeLayer`（震屏偏移） |
+| 输入 | `keydown` / `keyup` + Pointer Events，两套输入都能完成一局 |
+| HUD | DOM 覆盖层，`pointer-events: none`，按钮单独可点 |
+| 产物 | 单文件 HTML，无构建、无框架、无 `import` / `require` |
 
-## 快速开始
+约束：禁止 `alert` / `confirm` / `prompt`、`localStorage` / `sessionStorage` / `cookie`、外部字体 / 图片 / 音频；最高分只保存在内存。
 
-### 1. 准备提示词
+LeaferJS 只允许引入一次：
 
-将 [`appPrompt.md`](./appPrompt.md) 全文作为**系统提示词**（System Prompt）交给支持长输出的模型。它包含角色设定、交付格式、转义规则、运行时契约、游戏设计标准和完整示例。
-
-### 2. 提出需求
-
-用一句自然语言描述玩法，例如：
-
-> 玩家控制一只在霓虹城市屋顶间跳跃的猫，躲开无人机，收集鱼干。
-
-提示词明确要求模型**不要反问、不要输出设计过程**，自行完成玩法与实现决策。
-
-### 3. 解析 JSON 并落盘
-
-```js
-const fs = require('fs');
-const data = JSON.parse(responseText);
-fs.writeFileSync('game.html', data.code, 'utf8');
-console.log(data.title, data.description);
+```text
+https://unpkg.com/leafer-ui@2.3.4/dist/web.min.js
 ```
-
-### 4. 在浏览器中打开
-
-双击 `game.html` 即可开始。点击「开始」后键盘事件才会绑定到页面；手机上用拖拽或触摸操作。
 
 ## 目录结构
 
 ```text
 LeaferJS-game/
+├── appPrompt.md     # 工具引擎：完整系统提示词（必需）
 ├── README.md        # 本文件
-├── appPrompt.md     # 完整提示词（角色、协议、运行时契约、示例）
-├── appCode.vue      # 平台端 Vue 单文件组件（在线应用的 UI 壳）
-├── appPage.html     # iframe 嵌入页，指向 transweb.cn 在线应用
-└── manifest.json    # 应用元数据与来源
+├── appCode.vue      # 可选参考实现：平台端 UI（独立运行不需要）
+├── appPage.html     # 可选参考实现：iframe 嵌入页
+└── manifest.json    # 元数据
 ```
 
-说明：`appCode.vue` 是平台侧的交互界面（对话、历史、下载等），**不是**游戏产物本身；游戏由提示词生成在 JSON 的 `code` 字段中。
+`run.mjs` 不在仓库内，按「快速开始」创建即可；`appCode.vue` 与 `appPage.html` 只是同款提示词在 transweb.cn 上的 Web 外壳，**不参与**独立运行链路，删掉它们不影响工具使用。
 
 ## 提示词设计要点
 
@@ -150,18 +228,30 @@ LeaferJS-game/
 - [ ] 页面无滚动条，滚轮不会缩放/拖动画面
 - [ ] 所有按钮、所有键位都有效
 
-## 已知限制
+## 常见问题
 
-- 依赖 `unpkg.com` CDN，离线或网络受限时需要自建镜像并替换脚本地址。
-- 单次生成篇幅较长（400–850 行），小上下文模型容易截断。
-- 最高分只保存在内存中（页面可能运行在 `data:` URL 的 iframe 中，存储 API 会被禁用）。
-- 提示词内示例只用于学习格式与工程结构，不应照抄题材与数值。
+**为什么没有排行榜？**
+为了让产物在任意环境（包括 `data:` URL 的 iframe）中都能运行，提示词禁用持久化存储；最高分只保留在内存里。需要排行榜时，可自行接入后端。
+
+**必须联网吗？**
+生成阶段需要访问模型；播放阶段需要加载 LeaferJS CDN。要完全离线，可下载 `web.min.js` 到本地并替换产物里的脚本地址，再配合本地模型使用。
+
+**输出被截断怎么办？**
+优先提高 `LLM_MAX_TOKENS`，或换用输出上限更大的模型。提示词已要求模型在预算内优先保证核心玩法与 `</html>` 完整。
+
+**可以商用吗？**
+本仓库暂未声明许可证。提示词与生成代码的版权归各自作者所有，商用前请自行确认授权范围。
+
+## 参考实现（可选）
+
+- 在线效果参考：<https://transweb.cn/agent.html?id=ac531ed5783afaa1bd0590a357539e5d>
+- `appPage.html` 通过 iframe 嵌入同一在线版本；它只用于预览，不是运行本工具的必要条件。
 
 ## 相关链接
 
 - LeaferJS 官网：<https://www.leaferjs.com/>
 - LeaferJS 文档：<https://www.leaferjs.com/ui/guide/>
-- 在线应用：<https://transweb.cn/agent.html?id=ac531ed5783afaa1bd0590a357539e5d>
+- 本仓库：<https://github.com/liuwenjin/LeaferJS-game>
 
 ## 许可
 
